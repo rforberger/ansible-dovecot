@@ -1,0 +1,43 @@
+---
+
+- name: Install dovecot-imapd
+  ansible.builtin.apt:
+    name: dovecot-imapd
+    state: present
+
+- name: Write config
+  ansible.builtin.lineinfile:
+    path: "/etc/dovecot/conf.d/{{ item.configfile }}"
+    regexp: "^{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: "{{ item.state }}"
+  loop:
+    - { configfile: "10-mail.conf", regexp: "^mail_location", line: "mail_location = maildir:~/.maildir", state: present }
+    - { configfile: "10-ssl.conf", regexp: "^ssl_cert", line: "ssl_cert = </etc/letsencrypt/live/{{ canonical_mail_host}}/cert.pem", state: present }
+    - { configfile: "10-ssl.conf", regexp: "^ssl_key", line: "ssl_key = </etc/letsencrypt/live/{{ canonical_mail_host}}/privkey.pem", state: present }
+    - { configfile: "10-ssl.conf", regexp: "^ssl_ca", line: "ssl_ca = </etc/letsencrypt/live/{{ canonical_mail_host}}/chain.pem", state: present }
+    - { configfile: "10-ssl.conf", regexp: "^#ssl_ca", line: "ssl_ca = </etc/letsencrypt/live/{{ canonical_mail_host}}/chain.pem", state: present } # workarround, for #ssl_ca entry
+    - { configfile: "10-ssl.conf", regexp: "^ssl_min_protocol", line: "ssl_min_protocol = TLSv1.2", state: present }
+    - { configfile: "10-auth.conf", regexp: "^auth_mechanisms", line: "auth_mechanisms = plain login", state: present }
+  notify:
+    - dovecot
+
+- name: Write config
+  ansible.builtin.template:
+    src: "10-master.conf.j2"
+    dest: "/etc/dovecot/conf.d/10-master.conf"
+  notify:
+    - dovecot
+
+- name: Start dovecot
+  ansible.builtin.service:
+    name: "dovecot"
+    state: started
+    enabled: yes
+
+
+
+
+
+
+
